@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Typography } from '@mui/material';
 import LanIcon from '@mui/icons-material/Lan';
 import LanOutlinedIcon from '@mui/icons-material/LanOutlined';
-import WifiIcon from '@mui/icons-material/Wifi';
+// import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import SignalWifi0BarIcon from '@mui/icons-material/SignalWifi0Bar';
 import SignalWifi1BarIcon from '@mui/icons-material/SignalWifi1Bar';
