@@ -1,11 +1,3 @@
-
-
-# 全体フロー
-[React Frontend] <--HTTP API--> [FastAPI Backend] <--socket通信 on ETHERNET--> [計測器]
-                                        ↓
-　　　　　　　　　　　　  [postgresql(timescaleDB) on local] <-replication--> [postgresql(timescaleDB) on tecsdb]
-
-
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
