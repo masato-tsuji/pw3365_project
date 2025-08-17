@@ -1,2 +1,12 @@
-# network_api.py
-# 上流DB / 下流計測器の通信監視API
+# backend/src/api/network_api.py
+from fastapi import APIRouter
+from backend.src.core.services.network_service import network_status
+
+router = APIRouter()
+
+@router.get("/status")
+async def get_network_status():
+    """
+    ネットワーク監視状態を取得
+    """
+    return network_status
