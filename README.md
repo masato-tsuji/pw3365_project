@@ -1,4 +1,5 @@
 
+※開発中につきまだ動作しません！！
 
 # 全体フロー
 [React Frontend] <--HTTP API--> [FastAPI Backend] <--socket通信 on ETHERNET--> [計測器]
