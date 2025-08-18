@@ -1,6 +1,6 @@
 # backend/src/api/network_api.py
 from fastapi import APIRouter
-from backend.src.core.services.network_service import network_status
+from src.core.services.network_service import network_status
 
 router = APIRouter()
 

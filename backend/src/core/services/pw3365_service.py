@@ -1,14 +1,15 @@
+# src/core/services/pw3365_service.py
 import asyncio
 import logging
-from backend.src.sockets.socket_base import SocketBase
-from utils.pw3365_parser import parse_raw_data
-from core.services.insert_service import insert_dict_to_timescaledb
-from config.config_loader import load_settings
+from src.sockets.socket_base import SocketBase
+from src.utils.pw3365_parser import parse_raw_data
+from src.core.services.insert_service import insert_dict_to_timescaledb
+from src.config.config_loader import load_config
 
 logger = logging.getLogger(__name__)
 
 # 設定読み込み
-settings = load_settings()
+settings = load_config()
 PW3365_HOST = settings["pw3365"]["host"]
 PW3365_PORT = settings["pw3365"]["port"]
 DEFAULT_PERIOD = settings["pw3365"].get("period", 60)
@@ -23,6 +24,17 @@ class PW3365Service(SocketBase):
     def __init__(self, host: str, port: int):
         super().__init__(host, port)
         self._initialized = False
+    def connect(self):
+        """PW3365との接続を確立"""
+        super().connect()
+
+    def disconnect(self):
+        """PW3365との接続を切断"""
+        super().disconnect()
+
+    def is_alive(self) -> bool:
+        """接続状態を確認"""
+        return self.sock is not None
 
     # オーバーライド
     def send_command(self, command: str) -> str | None:
@@ -118,3 +130,5 @@ async def _collection_loop():
             await asyncio.sleep(collection_period)
     except asyncio.CancelledError:
         pass
+
+

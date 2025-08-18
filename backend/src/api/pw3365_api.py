@@ -1,7 +1,7 @@
 # backend/src/api/pw3365_api.py
 from fastapi import APIRouter, HTTPException
-from backend.src.core.services.pw3365_service import pw3365
-from backend.src.core.services.network_service import network_status
+from src.core.services.pw3365_service import pw3365
+from src.core.services.network_service import network_status
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/pw3365", tags=["PW3365"])

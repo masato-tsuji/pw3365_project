@@ -1,16 +1,16 @@
-# app/core/db.py
+# src/core/db.py
 # asyncpg接続プール
 
 import asyncio
 import asyncpg
-from app.config.config_loader import load_settings
+from src.config.config_loader import load_config
 
 _pool = None
 
 async def init_db_pool():
     global _pool
     if _pool is None:
-        settings = load_settings()
+        settings = load_config()
         _pool = await asyncpg.create_pool(
             host=settings["db"]["host"],
             port=settings["db"]["port"],

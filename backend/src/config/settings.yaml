@@ -1,11 +1,11 @@
 
 
-database:
+db:
   host: "localhost"
   port: 5432
   user: "postgres"
-  password: "password"
-  name: "timescaledb"
+  password: "postgres"
+  dbname: "bems_test"
 
 pw3365:
   host: "192.168.1.31"

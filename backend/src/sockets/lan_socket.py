@@ -3,7 +3,7 @@ import asyncio
 import logging
 import platform
 
-from src.utils.socket_base import SocketBase, SocketError
+from src.sockets.socket_base import SocketBase, SocketError
 
 logger = logging.getLogger(__name__)
 

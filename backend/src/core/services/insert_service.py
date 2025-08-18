@@ -1,8 +1,8 @@
 # src/core/services/insert_service.py
 import asyncio
 from typing import Dict
-from core.db import get_db_pool
-from utils.pw3365_parser import parse_raw_data
+from src.core.db import get_db_pool
+from src.utils.pw3365_parser import parse_raw_data
 
 CATEGORY_KEYS = {
     "pw3365_voltage": ["U", "Ufnd", "Udeg"],
