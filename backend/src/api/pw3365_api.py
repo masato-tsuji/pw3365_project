@@ -1,10 +1,17 @@
 # backend/src/api/pw3365_api.py
 from fastapi import APIRouter, HTTPException
-from src.core.services.pw3365_service import pw3365
+from src.core.services.pw3365_service import PW3365Service
 from src.core.services.network_service import network_status
 from pydantic import BaseModel
+from src.config.config_loader import load_config
 
 router = APIRouter(prefix="/pw3365", tags=["PW3365"])
+
+settings = load_config()
+pw3365 = PW3365Service(
+    host=settings["pw3365"]["host"],
+    port=settings["pw3365"]["port"]
+)
 
 class StartRequest(BaseModel):
     period: int | None = None  # 秒単位、未指定の場合は設定値を使用

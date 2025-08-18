@@ -1,4 +1,3 @@
-# src/core/services/pw3365_service.py
 import asyncio
 import logging
 from src.sockets.socket_base import SocketBase
@@ -19,45 +18,44 @@ SET_COMMAND = ":MEASure:ITEM:POWer 15,207,247,31,15,15\r\n"
 DEFAULT_READ_COMMAND = ":MEASure:POWer?\r\n"
 
 class PW3365Service(SocketBase):
-    """HIOKI PW3365 専用サービス"""
+    """HIOKI PW3365 専用サービス（完全非同期版）"""
 
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, period: int = DEFAULT_PERIOD):
         super().__init__(host, port)
         self._initialized = False
-    def connect(self):
-        """PW3365との接続を確立"""
-        super().connect()
+        self.collection_task: asyncio.Task | None = None
+        self.collection_period = period
 
-    def disconnect(self):
+    async def connect(self):
+        """PW3365との接続を確立"""
+        await super().connect()
+
+    async def disconnect(self):
         """PW3365との接続を切断"""
-        super().disconnect()
+        await super().disconnect()
 
     def is_alive(self) -> bool:
         """接続状態を確認"""
         return self.sock is not None
 
-    # オーバーライド
-    def send_command(self, command: str) -> str | None:
+    async def send_command(self, command: str) -> str | None:
+        """コマンド送信と応答取得"""
         if not self.sock:
             raise ConnectionError("ソケットが接続されていません")
 
         try:
-            # 初回だけ初期化シーケンス
             if not self._initialized:
-                self.sock.sendall(HEADER_ON.encode())
-                self.sock.recv(4096)
-                self.sock.sendall(SET_COMMAND.encode())
-                self.sock.recv(4096)
-                # 暫定で毎回初期化（検知ワードを入れ込むため）
+                await self.sock.sendall(HEADER_ON.encode())
+                await self.sock.recv(4096)
+                await self.sock.sendall(SET_COMMAND.encode())
+                await self.sock.recv(4096)
                 # self._initialized = True
 
-            # 実際のコマンド送信
-            self.sock.sendall(command.encode())
+            await self.sock.sendall(command.encode())
 
-            # ALL RIGHT が返るまでループ（暫定）
             raw_data = ""
             while "ALL RIGHT" not in raw_data:
-                chunk = self.sock.recv(4096).decode().strip()
+                chunk = (await self.sock.recv(4096)).decode().strip()
                 raw_data += chunk
 
             return raw_data.replace("ALL RIGHT", "").strip()
@@ -65,70 +63,44 @@ class PW3365Service(SocketBase):
             logger.error(f"PW3365通信エラー: {e}")
             return None
 
-
-# ====== 周期収集タスク ======
-collection_task: asyncio.Task | None = None
-collection_period = DEFAULT_PERIOD
-pw3365 = PW3365Service(PW3365_HOST, PW3365_PORT)
-
-async def fetch_current_measurement():
-    """単発取得（DBには保存しない）"""
-    loop = asyncio.get_running_loop()
-
-    def _worker():
-        pw3365.connect()
+    async def fetch_current_measurement(self) -> dict | None:
+        """単発取得（DBには保存しない）"""
+        await self.connect()
         try:
-            raw_data = pw3365.send_command(DEFAULT_READ_COMMAND)
+            raw_data = await self.send_command(DEFAULT_READ_COMMAND)
             return parse_raw_data(raw_data) if raw_data else None
         finally:
-            pw3365.disconnect()
+            await self.disconnect()
 
-    return await loop.run_in_executor(None, _worker)
+    async def start_collection(self, period: int | None = None):
+        """周期収集を開始しDBに保存"""
+        if period:
+            self.collection_period = period
 
+        if self.collection_task is None or self.collection_task.done():
+            self.collection_task = asyncio.create_task(self._collection_loop())
+        else:
+            logger.info("収集タスクはすでに起動中です")
 
-async def start_collection(period: int | None = None):
-    """周期収集を開始しDBに保存"""
-    global collection_task, collection_period
-    if period:
-        collection_period = period
+    async def stop_collection(self):
+        """周期収集を停止"""
+        if self.collection_task and not self.collection_task.done():
+            self.collection_task.cancel()
+            self.collection_task = None
 
-    # 多重起動防止
-    if collection_task is None or collection_task.done():
-        collection_task = asyncio.create_task(_collection_loop())
-    else:
-        logger.info("収集タスクはすでに起動中です")
-
-
-async def stop_collection():
-    """周期収集を停止"""
-    global collection_task
-    if collection_task and not collection_task.done():
-        collection_task.cancel()
-        collection_task = None
-
-
-async def _collection_loop():
-    """周期収集ループ"""
-    try:
-        while True:
-            loop = asyncio.get_running_loop()
-
-            def _worker():
-                pw3365.connect()
+    async def _collection_loop(self):
+        """周期収集ループ"""
+        try:
+            while True:
+                await self.connect()
                 try:
-                    raw_data = pw3365.send_command(DEFAULT_READ_COMMAND)
+                    raw_data = await self.send_command(DEFAULT_READ_COMMAND)
                     if raw_data:
-                        return parse_raw_data(raw_data)
+                        data = parse_raw_data(raw_data)
+                        await insert_dict_to_timescaledb(data)
                 finally:
-                    pw3365.disconnect()
-                return None
+                    await self.disconnect()
 
-            data = await loop.run_in_executor(None, _worker)
-            if data:
-                await insert_dict_to_timescaledb(data)
-
-            await asyncio.sleep(collection_period)
-    except asyncio.CancelledError:
-        pass
-
-
+                await asyncio.sleep(self.collection_period)
+        except asyncio.CancelledError:
+            pass
