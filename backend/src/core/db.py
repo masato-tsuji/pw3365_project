@@ -27,3 +27,4 @@ async def get_db_pool():
     if _pool is None:
         await init_db_pool()
     return _pool
+

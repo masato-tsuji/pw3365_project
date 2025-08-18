@@ -50,3 +50,4 @@ async def stop_collection():
     _check_network()
     await pw3365.stop_collection()
     return {"status": "stopped"}
+
