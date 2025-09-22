@@ -17,3 +17,8 @@ curl http://localhost:8000/meter/pw3365/test
 
 
 
+# tests
+pytest
+testsディレクトリの下にtest_***.pyファイルを配置
+rootディレクトリでpytestを実行
+
