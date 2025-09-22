@@ -1,10 +1,12 @@
 # backend/src/api/pw3365_api.py
+
 from fastapi import APIRouter, HTTPException
 from src.core.services.pw3365_service import PW3365Service
 from src.core.services.network_service import network_status
 from pydantic import BaseModel
 from src.config.config_loader import load_config
 
+# prefix "/pw3365" を つけているので"/meter/pw3365" になる
 router = APIRouter(prefix="/pw3365", tags=["PW3365"])
 
 settings = load_config()
@@ -50,4 +52,17 @@ async def stop_collection():
     _check_network()
     await pw3365.stop_collection()
     return {"status": "stopped"}
+
+@router.get("/test")
+async def test_connection():
+    _check_network()
+    try:
+        success = await pw3365.test_connection()
+        if success:
+            return {"status": "ok", "message": "Connection successful"}
+        else:
+            return {"status": "ng", "message": "Failed to connect"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 

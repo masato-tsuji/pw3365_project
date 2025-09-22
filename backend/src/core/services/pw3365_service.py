@@ -104,3 +104,15 @@ class PW3365Service(SocketBase):
                 await asyncio.sleep(self.collection_period)
         except asyncio.CancelledError:
             pass
+
+    async def test_connection(self) -> bool:
+        """接続テスト"""
+        try:
+            await self.connect()
+            await asyncio.sleep(0.1)  # 疑似的に少し待つ
+            await self.disconnect()
+            return True
+        except Exception as e:
+            print(f"Connection test failed: {e}")
+            return False
+

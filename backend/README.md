@@ -9,7 +9,11 @@ sudo apt install iw
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # get command
-curl http://localhost:8000/api/network/status | jq
+curl http://localhost:8000/meter/pw3365/test
+
+- main.py側でmeterのprefixをつけている
+- pw3365_api.py側でpw3365のprefixをつけている
+- 今後pw3365以外も増やしたときにmeterの配下にできる利点がある
 
 
 

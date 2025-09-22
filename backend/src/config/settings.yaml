@@ -1,11 +1,19 @@
 
 
+# db:
+#   host: "localhost"
+#   port: 5432
+#   user: "postgres"
+#   password: "postgres"
+#   dbname: "bems_test"
+
 db:
-  host: "localhost"
+  host: "192.168.0.14"
   port: 5432
   user: "postgres"
   password: "postgres"
-  dbname: "bems_test"
+  dbname: "tecs_test"
+
 
 pw3365:
   host: "192.168.1.31"
