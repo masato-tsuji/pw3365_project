@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Powerlogger for PW3365
+# 動作確認済み
+
 import socket
 import time
 from datetime import datetime, timedelta
