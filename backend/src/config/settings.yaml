@@ -8,7 +8,7 @@ db:
   dbname: "bems_test"
 
 pw3365:
-  host: "192.168.1.31"
+  host: "192.168.0.31"
   port: 3365
   period: 60   # デフォルト周期 [秒]
 
