@@ -55,6 +55,10 @@ curl http://localhost:8000/openapi.json | jq '.paths'
 
 # ------------------------------------------------
 
+
+
+
+
 # pw3365 関係テーブルスキーマ & timescaledbのhypertable作成
 CREATE TABLE IF NOT EXISTS pw3365_voltage (
     date_time TIMESTAMPTZ NOT NULL,

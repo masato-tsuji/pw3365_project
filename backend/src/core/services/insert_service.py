@@ -15,19 +15,9 @@ CATEGORY_KEYS = {
 }
 
 async def insert_dict_to_timescaledb(data_dict: Dict):
-    # timestamp = data_dict.get("timestamp")
-    # if isinstance(timestamp, str):
-    #     date_time = datetime.fromisoformat(timestamp)
-    # elif isinstance(timestamp, datetime):
-    #     date_time = timestamp
-    # else:
-    #     date_time = datetime.now().replace(second=0, microsecond=0)
-
     normalized_data = {k.lower(): v for k, v in data_dict.items()}
-    # normalized_data["device_id"] = normalized_data.get("device_id", "pw3365")
     normalized_data["device_id"] = get_representative_mac() or "unknown"
-    normalized_data["device_name"] = normalized_data.get("device_name", "pw3365_device")
-
+    normalized_data["device_name"] = data_dict.get("device_name")
 
     pool = await get_db_pool()
     async with pool.acquire() as conn:
@@ -53,6 +43,6 @@ async def insert_dict_to_timescaledb(data_dict: Dict):
             try:
                 async with conn.transaction():
                     await conn.execute(query, *values)
-                    print(f"Inserted into {table_name}.")
+                    # print(f"Inserted into {table_name}.")
             except Exception as e:
                 print(f"Error inserting into {table_name}: {e}")
