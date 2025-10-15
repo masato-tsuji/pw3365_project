@@ -16,10 +16,10 @@ def parse_raw_data(raw_data: str) -> dict:
     parts = raw_data.strip().split(';')
     result = {}
 
-    # タイムスタンプ作成
-    now = datetime.now()
-    timestamp = now.replace(second=0, microsecond=0)
-    result['timestamp'] = timestamp
+    # タイムスタンプ作成(計器の時計はずれている可能性があるので現在時刻を使用)
+    # UTCに対応を検討（timescaledbのタイムゾーンに合わせるため）
+    timestamp = datetime.now().replace(second=0, microsecond=0)
+    result['date_time'] = timestamp
 
     for part in parts:
         if not part:

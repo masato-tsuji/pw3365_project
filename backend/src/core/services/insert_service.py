@@ -1,35 +1,58 @@
-# src/core/services/insert_service.py
+# backend/src/core/services/insert_service.py
 import asyncio
+from datetime import datetime
 from typing import Dict
+from src.utils.get_mac_id import get_representative_mac
 from src.core.db import get_db_pool
-from src.utils.pw3365_parser import parse_raw_data
 
 CATEGORY_KEYS = {
-    "pw3365_voltage": ["U", "Ufnd", "Udeg"],
-    "pw3365_current": ["I", "Ifnd", "Ideg", "Ipeak"],
-    "pw3365_power": ["P", "PF", "S", "Q", "DPF"],
-    "pw3365_energy": ["WP", "WQLAG", "WQLEAD", "Ecost"],
-    "pw3365_demand": ["WP_dem", "Pdem", "Qdem", "PF_dem"],
-    "pw3365_freq": ["Freq"]
+    "pw3365_voltage": ["u", "ufnd", "udeg", "upeak"],
+    "pw3365_current": ["i", "ifnd", "ideg", "ipeak"],
+    "pw3365_power": ["p", "pf", "s", "q", "dpf"],
+    "pw3365_energy": ["wp", "wqlag", "wqlead", "ecost"],
+    "pw3365_demand": ["wp_dem", "pdem", "qdem", "pf_dem", "pdemplus"],  # ← pdemplus 追加
+    "pw3365_freq": ["freq"]
 }
-COMMON_KEYS = ["device_id", "timestamp"]
 
 async def insert_dict_to_timescaledb(data_dict: Dict):
+    # timestamp = data_dict.get("timestamp")
+    # if isinstance(timestamp, str):
+    #     date_time = datetime.fromisoformat(timestamp)
+    # elif isinstance(timestamp, datetime):
+    #     date_time = timestamp
+    # else:
+    #     date_time = datetime.now().replace(second=0, microsecond=0)
+
+    normalized_data = {k.lower(): v for k, v in data_dict.items()}
+    # normalized_data["device_id"] = normalized_data.get("device_id", "pw3365")
+    normalized_data["device_id"] = get_representative_mac() or "unknown"
+    normalized_data["device_name"] = normalized_data.get("device_name", "pw3365_device")
+
+
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        async with conn.transaction():
-            for table_name, prefixes in CATEGORY_KEYS.items():
-                sub_dict = {k: v for k, v in data_dict.items() if any(k.startswith(p) for p in prefixes)}
-                for ck in COMMON_KEYS:
-                    if ck in data_dict:
-                        sub_dict[ck] = data_dict[ck]
-                if len(sub_dict) > len(COMMON_KEYS):
-                    columns = ', '.join(sub_dict.keys())
-                    placeholders = ', '.join([f"${i+1}" for i in range(len(sub_dict))])
-                    values = list(sub_dict.values())
-                    query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders});"
-                    try:
-                        await conn.execute(query, *values)
-                        print(f"Inserted into {table_name}.")
-                    except Exception as e:
-                        print(f"Error inserting into {table_name}: {e}")
+        for table_name, prefixes in CATEGORY_KEYS.items():
+            sub_dict = {
+                k: v for k, v in normalized_data.items()
+                if any(k.startswith(prefix) for prefix in prefixes) and k != "status"
+            }
+
+            if len(sub_dict) == 0:
+                print(f"Skipped {table_name}: no relevant data.")
+                continue
+
+            sub_dict["date_time"] = normalized_data["date_time"]
+            sub_dict["device_id"] = normalized_data["device_id"]
+            sub_dict["device_name"] = normalized_data["device_name"]
+
+            columns = ', '.join(sub_dict.keys())
+            placeholders = ', '.join([f"${i+1}" for i in range(len(sub_dict))])
+            values = list(sub_dict.values())
+            query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders});"
+
+            try:
+                async with conn.transaction():
+                    await conn.execute(query, *values)
+                    print(f"Inserted into {table_name}.")
+            except Exception as e:
+                print(f"Error inserting into {table_name}: {e}")

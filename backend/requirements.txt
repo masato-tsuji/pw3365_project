@@ -6,3 +6,4 @@ pyyaml
 pytest
 httpx
 pyserial-asyncio
+psutil
