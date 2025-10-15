@@ -28,6 +28,7 @@ scp -P 2222 core/services/insert_service.py tecsmnt@172.21.206.157:/home/tecsmnt
 
 scp -P 2222 utils/get_mac_id.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/utils/
 scp -P 2222 utils/pw3365_parser.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/utils/
+scp -P 2222 utils/pg_replication.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/utils/
 
 
 
@@ -54,10 +55,17 @@ curl -X POST http://localhost:8000/meter/pw3365/stop
 curl http://localhost:8000/openapi.json | jq '.paths'
 
 # ------------------------------------------------
+## postgresql replication
 
+-- エッジ側でパブリケーション作成
+CREATE PUBLICATION edge_pub FOR ALL TABLES;
 
+-- メインDBに接続してサブスクリプション作成
+CREATE SUBSCRIPTION edge_sub
+  CONNECTION 'host=db.example.com dbname=maindb user=replicator password=xxx'
+  PUBLICATION edge_pub;
 
-
+# ------------------------------------------------
 
 # pw3365 関係テーブルスキーマ & timescaledbのhypertable作成
 CREATE TABLE IF NOT EXISTS pw3365_voltage (
