@@ -131,3 +131,4 @@ class PW3365Service:
         except Exception as e:
             print(f"Unexpected error in collection loop: {e}")
 
+

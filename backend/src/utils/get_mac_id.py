@@ -19,8 +19,9 @@ def get_representative_mac():
         for addr in addrs:
             if addr.family == psutil.AF_LINK:
                 mac = addr.address
+                safe_mac = mac.replace(":", "_").lower()
                 if mac and mac != '00:00:00:00:00:00':
-                    return mac
+                    return safe_mac
     return None
 
 # 実行例

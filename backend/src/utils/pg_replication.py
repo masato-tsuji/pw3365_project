@@ -1,5 +1,7 @@
 import psycopg2
 import logging
+from src.config.config_loader import load_config
+from src.utils.get_mac_id import get_representative_mac
 
 # ログ設定
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -21,8 +23,12 @@ MAIN_DB_CONFIG = {
     'password': 'postgres'
 }
 
-PUBLICATION_NAME = 'edge_pub'
-SUBSCRIPTION_NAME = 'edge_sub'
+tables = 'iot_data.pw3365_current, iot_data.pw3365_demand, ' \
+'iot_data.pw3365_energy, iot_data.pw3365_freq, iot_data.pw3365_power, iot_data.pw3365_voltage'
+
+mac = get_representative_mac()
+PUBLICATION_NAME = f'pub_{mac}'
+SUBSCRIPTION_NAME = f'sub_{mac}'
 
 # autocommit対応の接続関数
 def connect_db(config, autocommit=False):
@@ -37,9 +43,11 @@ def ensure_publication(conn):
         if cur.fetchone():
             logging.info("Publication already exists. Skipping creation.")
         else:
-            cur.execute(f"CREATE PUBLICATION {PUBLICATION_NAME} FOR ALL TABLES;")
+            cur.execute(f"CREATE PUBLICATION {PUBLICATION_NAME} FOR TABLE {tables};")
+            conn.commit()
             logging.info("Publication created successfully.")
 
+# 
 def ensure_subscription(conn):
     with conn.cursor() as cur:
         cur.execute("SELECT 1 FROM pg_subscription WHERE subname = %s", (SUBSCRIPTION_NAME,))

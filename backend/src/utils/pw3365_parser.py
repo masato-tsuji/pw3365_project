@@ -1,5 +1,5 @@
 # src/utils/pw3365_parser.py
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 
 def convert_e_notation(value: str) -> float | str:
@@ -18,7 +18,7 @@ def parse_raw_data(raw_data: str) -> dict:
 
     # タイムスタンプ作成(計器の時計はずれている可能性があるので現在時刻を使用)
     # UTCに対応を検討（timescaledbのタイムゾーンに合わせるため）
-    timestamp = datetime.now().replace(second=0, microsecond=0)
+    timestamp = datetime.now(timezone.utc).replace(second=0, microsecond=0)
     result['date_time'] = timestamp
 
     for part in parts:

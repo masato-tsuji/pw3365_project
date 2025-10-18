@@ -38,7 +38,7 @@ async def insert_dict_to_timescaledb(data_dict: Dict):
             columns = ', '.join(sub_dict.keys())
             placeholders = ', '.join([f"${i+1}" for i in range(len(sub_dict))])
             values = list(sub_dict.values())
-            query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders});"
+            query = f"INSERT INTO iot_data.{table_name} ({columns}) VALUES ({placeholders});"
 
             try:
                 async with conn.transaction():

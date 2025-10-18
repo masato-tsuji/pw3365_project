@@ -1,15 +1,21 @@
 
 
 db:
-  host: "localhost"
-  port: 5432
-  user: "postgres"
-  password: "postgres"
-  dbname: "bems_test"
+  main:
+    host: "161.94.139.28"
+    port: 5432
+    dbname: "tecs_data"
+    user: "postgres"
+    password: "postgres"
+  edge:
+    host: "localhost"
+    port: 5432
+    dbname: "bems_test"
+    user: "postgres"
+    password: "postgres"
 
 pw3365:
   host: "192.168.0.31"
   port: 3365
-  period: 60   # デフォルト周期 [秒]
+  period: 5   # デフォルト周期 [分]
 
-  

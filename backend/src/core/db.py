@@ -10,13 +10,13 @@ _pool = None
 async def init_db_pool():
     global _pool
     if _pool is None:
-        settings = load_config()
+        db_conf = load_config()["db"]['edge']
         _pool = await asyncpg.create_pool(
-            host=settings["db"]["host"],
-            port=settings["db"]["port"],
-            user=settings["db"]["user"],
-            password=settings["db"]["password"],
-            database=settings["db"]["dbname"],
+            host=db_conf["host"],
+            port=db_conf["port"],
+            user=db_conf["user"],
+            password=db_conf["password"],
+            database=db_conf["dbname"],
             min_size=1,
             max_size=10
         )

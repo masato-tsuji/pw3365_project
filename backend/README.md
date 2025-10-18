@@ -23,12 +23,17 @@ scp tecsmnt@172.21.206.157:~/insert_service.py /home/tecsmnt/repositories/pw3365
 # srcの下で実行 devからtaf padのwslへ
 scp -P 2222  api/pw3365_api.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/api/
 
+scp -P 2222  config/settings.yaml tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/config/
+
 scp -P 2222 core/services/pw3365_service.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/core/services/
 scp -P 2222 core/services/insert_service.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/core/services/
+scp -P 2222 core/services/network_service.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/core/services/
+scp -P 2222 core/db.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/core/
 
 scp -P 2222 utils/get_mac_id.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/utils/
 scp -P 2222 utils/pw3365_parser.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/utils/
 scp -P 2222 utils/pg_replication.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/utils/
+scp -P 2222 utils/*.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/utils/
 
 
 
@@ -56,19 +61,138 @@ curl http://localhost:8000/openapi.json | jq '.paths'
 
 # ------------------------------------------------
 ## postgresql replication
-
+```SQL
 -- エッジ側でパブリケーション作成
 CREATE PUBLICATION edge_pub FOR ALL TABLES;
 
--- メインDBに接続してサブスクリプション作成
+-- メインDBにサブスクリプション作成
 CREATE SUBSCRIPTION edge_sub
   CONNECTION 'host=db.example.com dbname=maindb user=replicator password=xxx'
   PUBLICATION edge_pub;
+```
+
+### 管理用テーブル作成
+```SQL
+--- エッジ側で計測開始/停止時にDB更新することでそのトリガーでサブを開始
+CREATE TABLE admin.subscription_control (
+  subscription_id TEXT PRIMARY KEY,
+  ip_address TEXT NOT NULL,
+  status TEXT CHECK (status IN ('start', 'stop')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  last_enabled_at TIMESTAMPTZ
+);
+```
+
+### pg_cronで一定時間パブなければサブを一時停止
+```SQL
+-- pg_cron拡張なければインストール
+sudo apt update
+sudo apt install postgresql-16-cron
+
+-- psqlで有効化
+tecs_data=# CREATE EXTENSION pg_cron;
+
+-- 10分周期で確認し30分以上パブなければ一時停止するcronを登録
+-- 関数を作成
+CREATE OR REPLACE FUNCTION admin.disable_stale_subs()
+RETURNS void AS $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT subname FROM pg_stat_subscription
+    WHERE enabled = true
+      AND last_msg_receipt_time IS NOT NULL
+      AND last_msg_receipt_time < now() - interval '30 minutes'
+  LOOP
+    EXECUTE format('ALTER SUBSCRIPTION %I DISABLE;', r.subname);
+    UPDATE admin.subscription_control
+    SET status = 'stop'
+    WHERE device_id = substring(r.subname from 5); -- 'sub_<device_id>'からdevice_idを抽出
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+-- pg_cronにjobを登録
+SELECT cron.schedule(
+  'disable_stale_subs',
+  '*/10 * * * *',
+  'SELECT admin.disable_stale_subs();'
+);
+
+-- jobを確認
+SELECT * FROM cron.job;
+```
+
+### トリガーでサブを開始/停止
+```SQL
+-- 関数を作成
+CREATE OR REPLACE FUNCTION admin.control_subscription()
+RETURNS TRIGGER AS $$
+BEGIN
+
+  -- insertやsubのIPが変わった時の処理
+  IF TG_OP = 'INSERT' OR NEW.ip_address IS DISTINCT FROM OLD.ip_address THEN
+    EXECUTE format(
+      'ALTER SUBSCRIPTION %I CONNECTION ''host=%s dbname=tecs_data user=postgres password=postgres'';',
+      NEW.subscription_id, NEW.ip_address
+    );
+  END IF;
+
+  -- statusが変化したときのみ処理
+  IF TG_OP = 'UPDATE' AND NEW.status = OLD.status THEN
+    RETURN NEW;
+  END IF;
+
+  IF NEW.status = 'start' THEN
+    EXECUTE format('ALTER SUBSCRIPTION %I ENABLE;', NEW.subscription_id);
+    UPDATE admin.subscription_control
+    SET last_enabled_at = now()
+    WHERE subscription_id = NEW.subscription_id;
+
+  ELSIF NEW.status = 'stop' THEN
+    EXECUTE format('ALTER SUBSCRIPTION %I DISABLE;', NEW.subscription_id);
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- トリガーを登録
+CREATE TRIGGER trg_control_subscription
+AFTER INSERT OR UPDATE ON admin.subscription_control
+FOR EACH ROW
+EXECUTE FUNCTION admin.control_subscription();
+
+```
+
 
 # ------------------------------------------------
 
-# pw3365 関係テーブルスキーマ & timescaledbのhypertable作成
-CREATE TABLE IF NOT EXISTS pw3365_voltage (
+# pw3365 関係テーブルスキーマ ※timescaledbにするとlogical replicationできない・・・
+```SQL
+
+-- スキーマの移動
+-- ALTER TABLE public.テーブル名 SET SCHEMA iot_data;
+
+CREATE TABLE iot_data.pw3365_power (
+    time TIMESTAMPTZ NOT NULL,
+    device_id TEXT NOT NULL,
+    device_name TEXT,
+    voltage_phase_r DOUBLE PRECISION,
+    voltage_phase_s DOUBLE PRECISION,
+    voltage_phase_t DOUBLE PRECISION,
+    current_phase_r DOUBLE PRECISION,
+    current_phase_s DOUBLE PRECISION,
+    current_phase_t DOUBLE PRECISION,
+    power_active DOUBLE PRECISION,
+    power_reactive DOUBLE PRECISION,
+    power_apparent DOUBLE PRECISION,
+    power_factor DOUBLE PRECISION
+);
+
+CREATE TABLE IF NOT EXISTS iot_data.pw3365_voltage (
     date_time TIMESTAMPTZ NOT NULL,
     device_id TEXT,
     device_name TEXT,
@@ -89,9 +213,9 @@ CREATE TABLE IF NOT EXISTS pw3365_voltage (
     upeak1_min REAL,
     PRIMARY KEY (date_time, device_id)
 );
-SELECT create_hypertable('pw3365_voltage', 'date_time', if_not_exists => TRUE);
+
 ------------------------------------------------
-CREATE TABLE IF NOT EXISTS pw3365_current (
+CREATE TABLE IF NOT EXISTS iot_data.pw3365_current (
     date_time TIMESTAMPTZ NOT NULL,
     device_id TEXT,
     device_name TEXT,
@@ -112,9 +236,9 @@ CREATE TABLE IF NOT EXISTS pw3365_current (
     ipeak1_min REAL,
     PRIMARY KEY (date_time, device_id)
 );
-SELECT create_hypertable('pw3365_current', 'date_time', if_not_exists => TRUE);
+
 ------------------------------------------------
-CREATE TABLE IF NOT EXISTS pw3365_freq (
+CREATE TABLE IF NOT EXISTS iot_data.pw3365_freq (
     date_time TIMESTAMPTZ NOT NULL,
     device_id TEXT,
     device_name TEXT,
@@ -124,9 +248,9 @@ CREATE TABLE IF NOT EXISTS pw3365_freq (
     freq_min REAL,
     PRIMARY KEY (date_time, device_id)
 );
-SELECT create_hypertable('pw3365_freq', 'date_time', if_not_exists => TRUE);
+
 ------------------------------------------------
-CREATE TABLE IF NOT EXISTS pw3365_energy (
+CREATE TABLE IF NOT EXISTS iot_data.pw3365_energy (
     date_time TIMESTAMPTZ NOT NULL,
     device_id TEXT,
     device_name TEXT,
@@ -140,9 +264,9 @@ CREATE TABLE IF NOT EXISTS pw3365_energy (
     wqleaddem1 REAL,
     PRIMARY KEY (date_time, device_id)
 );
-SELECT create_hypertable('pw3365_energy', 'date_time', if_not_exists => TRUE);
+
 ------------------------------------------------
-CREATE TABLE IF NOT EXISTS pw3365_demand (
+CREATE TABLE IF NOT EXISTS iot_data.pw3365_demand (
     date_time TIMESTAMPTZ NOT NULL,
     device_id TEXT,
     device_name TEXT,
@@ -156,5 +280,9 @@ CREATE TABLE IF NOT EXISTS pw3365_demand (
     qdemlead1 REAL,
     PRIMARY KEY (date_time, device_id)
 );
-SELECT create_hypertable('pw3365_demand', 'date_time', if_not_exists => TRUE);
+
+```
+
+
+
 

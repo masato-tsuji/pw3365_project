@@ -1,6 +1,7 @@
 # backend/src/core/services/network_service.py
 import asyncio
 import logging
+from src.utils.netcheck import is_reachable_main_db
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,12 @@ async def monitor_network(interval: int = 10):
             # 実際のネットワークチェック処理をここに実装
             # 例: pingやTCP接続チェックなど
             # 成功した場合
+
+            res = is_reachable_main_db()
+
+            if not res:
+                raise Exception("メインDBへの接続に失敗しました。")     
+
             network_status["ok"] = True
             network_status["message"] = "ネットワーク正常"
         except Exception as e:
