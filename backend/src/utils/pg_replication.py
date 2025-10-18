@@ -18,7 +18,7 @@ EDGE_DB_CONFIG = {
 MAIN_DB_CONFIG = {
     'host': '161.94.139.28',
     'port': 5432,
-    'dbname': 'test',
+    'dbname': 'tecs_data',
     'user': 'postgres',
     'password': 'postgres'
 }

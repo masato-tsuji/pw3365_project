@@ -10,7 +10,8 @@
 # 単独実行例:
 #   python src/utils/notify_pub.py
 # これを単体でcron等から定期実行
-#
+
+# トランザクションではcreate 
 
 import psycopg2
 from datetime import datetime, timezone
@@ -30,7 +31,6 @@ def get_local_ip():
 def notify_main_db(subscription_id, ip_address):
     try:
         db_conf = load_config()["db"]["main"]
-        print(db_conf)
         conn = psycopg2.connect(
             host=db_conf['host'],      # ← メインDBのホスト名またはIP
             dbname=db_conf['dbname'],         # ← メインDB名

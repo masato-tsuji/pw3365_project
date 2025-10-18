@@ -35,7 +35,9 @@ scp -P 2222 utils/pw3365_parser.py tecsmnt@172.21.206.157:/home/tecsmnt/reposito
 scp -P 2222 utils/pg_replication.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/utils/
 scp -P 2222 utils/*.py tecsmnt@172.21.206.157:/home/tecsmnt/repositories/pw3365_project/backend/src/utils/
 
-
+# wslからpower shellを呼び出してwindows側のIPを取得
+export PATH=$PATH:/mnt/c/Windows/System32/WindowsPowerShell/v1.0  # windowsのPATHをwslに渡す
+powershell.exe -Command "Get-NetIPAddress -AddressFamily IPv4 | Select-Object InterfaceAlias, IPAddress"
 
 # 固有ID
 cat /etc/machine-id
@@ -93,7 +95,7 @@ sudo apt install postgresql-16-cron
 -- psqlで有効化
 tecs_data=# CREATE EXTENSION pg_cron;
 
--- 10分周期で確認し30分以上パブなければ一時停止するcronを登録
+-- 10分周期で確認し61分以上パブなければ一時停止するcronを登録
 -- 関数を作成
 CREATE OR REPLACE FUNCTION admin.disable_stale_subs()
 RETURNS void AS $$
@@ -104,7 +106,7 @@ BEGIN
     SELECT subname FROM pg_stat_subscription
     WHERE enabled = true
       AND last_msg_receipt_time IS NOT NULL
-      AND last_msg_receipt_time < now() - interval '30 minutes'
+      AND last_msg_receipt_time < now() - interval '61 minutes'
   LOOP
     EXECUTE format('ALTER SUBSCRIPTION %I DISABLE;', r.subname);
     UPDATE admin.subscription_control
